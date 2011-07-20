@@ -94,17 +94,21 @@ def getSectionInfo(pe, Va):
 def getEntropy(data):
     """Calculate the entropy of a chunk of data."""
 
-    if not data:
-        return 0
+    if len(data) == 0:
+        return 0.0
 
+    occurences = array.array('L', [0]*256)
+
+    for x in data:
+        occurences[ord(x)] += 1
+    
     entropy = 0
-    for x in range(256):
-        p_x = float(data.count(chr(x)))/len(data)
-        if p_x > 0:
-          entropy += - p_x*math.log(p_x, 2)
+    for x in occurences:
+        if x:
+            p_x = float(x) / len(data)
+            entropy -= p_x*math.log(p_x, 2)
 
     return entropy
-
 
 #-------------------------------------------------------------------------------
 

@@ -8,6 +8,7 @@
 import getopt
 from immlib import *
 
+# 2003, 2000, NT, XP, Vista 
 syscall_table = {'2003': 
  {'0x0103': 'NtSignalAndWaitForSingleObject',
  '0x009e': 'NtQueryInformationFile',
@@ -1451,7 +1452,7 @@ syscall_table = {'2003':
  '0x0183': 'NtQueryLicenseValue',
  '0x0181': 'NtCreateThreadEx'}}
 
-
+DESC = "Analyze module for Syscalls"
 
 
 def usage(imm):

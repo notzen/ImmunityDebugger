@@ -37,7 +37,7 @@ class ExportHooks(LoadDLLHook):
         # of having to rebuild IATs.
         event = self.imm.getEvent()
         self.imm.log("Module that just got loaded: %s" % event.lpImageName)
-        #module = self.imm.getModule( event.lpImageName )
+        module = self.imm.getModule( event.lpImageName )
         
         # Force analysis
         self.imm.analyseCode( module.getCodebase() )
@@ -108,7 +108,8 @@ def main(args):
     # and set a logging BP hook on them. Ignore all calls
     # to Rtl* as they need to be instrumented with fast hooks
     module = imm.getModule( imm.getDebuggedName() )
-
+    if not module:
+        return '[%s] No modules loaded. Please load a file first'%NAME
     # We use a LoadDLLHook so that if libraries get added
     # we automagically add the new functions to the global hook
     loaddll_hook = ExportHooks()

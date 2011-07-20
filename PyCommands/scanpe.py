@@ -32,7 +32,7 @@ import immlib
 import math
 import pefile
 import peutils
-
+import array
 
 #-------------------------------------------------------------------------------
 

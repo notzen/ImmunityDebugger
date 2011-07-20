@@ -96,9 +96,9 @@ def getEntropy(data):
 
     if len(data) == 0:
         return 0.0
-
+    
     occurences = array.array('L', [0]*256)
-
+    
     for x in data:
         occurences[ord(x)] += 1
     
@@ -107,7 +107,7 @@ def getEntropy(data):
         if x:
             p_x = float(x) / len(data)
             entropy -= p_x*math.log(p_x, 2)
-
+    
     return entropy
 
 #-------------------------------------------------------------------------------

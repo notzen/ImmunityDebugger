@@ -173,8 +173,6 @@ def main(args):
     # Display results of scan ..
     imm.log("Result:")
     if not ret:
-        imm.log("  Nothing found ..")
-        imm.log(" ")
         return "Nothing found .."
 
     if EP_Only == 1:
@@ -183,22 +181,20 @@ def main(args):
         addr = pe.get_offset_from_rva(pe.OPTIONAL_HEADER.AddressOfEntryPoint)
         imm.log("  Found \"%s\" at offset 0x%08X %s" % (ret[0], addr, getSectionInfo(pe, va)), address = va)
         imm.log(" ")
-        return "Found \"%s\" at 0x%08X .." % (ret[0], va)
     else:
         # If more than 1 returned detection, then display all possibilities ..
         if len(ret) > 1:
+            imm.log("Found %d possible matches .." % len(ret) )
             a = 1
             for (addr, name) in ret:
                 va = pe.OPTIONAL_HEADER.ImageBase + rawToRva(pe, addr)
                 imm.log('  %02d : \"%s\" at offset 0x%08X %s' % (a, name[0], addr, getSectionInfo(pe, va)), address = va)
                 a += 1
             imm.log(" ")
-            return "Found %d possible matches .." % len(ret)
         else:
             # If only 1 detection then display result ..
             for (addr, name) in ret:
                 va = pe.OPTIONAL_HEADER.ImageBase + rawToRva(pe, addr)
                 imm.log('  Found \"%s\" at offset 0x%08X %s' % (name[0], addr, getSectionInfo(pe, va)), address = va)
                 imm.log(" ")
-                return "Found \"%s\" at 0x%08X .." % (name[0], va)
-
+    return '[%s] Done.'%ProgName

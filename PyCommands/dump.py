@@ -15,7 +15,6 @@ LICENSE     = 'GPL v3'
 import immlib
 import pefile
 import getopt
-import peutils2
 import struct
 from ctypes import *
 from pelib import *

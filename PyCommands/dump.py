@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 
 #-------------------------------------------------------------------------------
-# Process Dump Utility
-# (C) 2010 -2011 Kiran Bandla <kbandla@in2void.com>
+# Process Dump Utility for Immunity Debugger 1.83
+# (C) 2011 Kiran Bandla <kbandla@in2void.com>
 #-------------------------------------------------------------------------------
 
 
 __VERSION__  = '0.01'
 NAME        = 'Dump'
 DESC        = 'Dump process to disk'
-COPYRIGHT   = '(C) 2010-2011 Kiran Bandla, <kbandla@in2void.com>'
-LICENSE     = 'GPL v3'
+COPYRIGHT   = '(C) 2011 Kiran Bandla, <kbandla@in2void.com>'
+LICENSE     = 'WTFPL'
 
 import immlib
 import pefile
@@ -23,7 +23,7 @@ DEBUG = False
 
 def usage(imm):
     imm.log(" ")
-    imm.log("PE Dumper [%s] by Kiran Bandla <kbandla@in2void.com>" % (NAME), focus=1, highlight=1)
+    imm.log("PE Dumper [%s] by kbandla" % (NAME), focus=1, highlight=1)
     imm.log("This script will dump a module to disk.")
     imm.log("Options:")
     imm.log("      -m : module name to dump. Default is the loaded module")

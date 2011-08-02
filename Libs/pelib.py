@@ -181,7 +181,7 @@ class ImportDescriptor:
         
     def get(self, data):
         (self.OriginalFirstThunk, self.TimeDateStamp, self.ForwarderChain, self.Name,\
-         self.FirstThunk) = struct.unpack(self.fmt, data[:struct.calcsize(self.smt)])
+         self.FirstThunk) = struct.unpack(self.fmt, data[:struct.calcsize(self.fmt)])
 
     def setSname(self, name):
             self.sName= name

@@ -143,8 +143,10 @@ def rebuild(filepath, target="c:\sample_fixed.exe"):
 
     #For each address in IAT, find the function name by either:
     #   o Building a database of Addresses:FunctionNames from your analysis DLLs
-    #   o Use imm to determine the function name. This choice is not very accurate - becuase of imm.
-
+    #   o Use imm to determine the function name. This choice is not very accurate - because of imm.
+    #       imm does not give us the literal name in case its a forwarder to a function in a different dll
+    #       Ex: kernel32.DeleteCriticalSection -> NTDLL.RtlDeleteCriticalSection
+    #       imm returns the latter, which cant be used to rebuild the IAT
     for offset, address in addresses.items():
         if int(address) != 0x00000000:
             func = imm.getFunction(address)

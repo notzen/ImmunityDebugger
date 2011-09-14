@@ -2,6 +2,7 @@
 
 #-------------------------------------------------------------------------------
 # Process Dump Utility for Immunity Debugger 1.83
+# 
 # Copyright (C) 2011 Kiran Bandla <kbandla@in2void.com>
 #-------------------------------------------------------------------------------
 
@@ -24,9 +25,10 @@ TAB = 4
 def usage(imm):
     imm.log(" ")
     imm.log("PE Dumper [%s] by kbandla" % (NAME), focus=1, highlight=1)
-    imm.log("This script will dump a module to disk.")
+    imm.log("This script will dump module(s) to disk.")
     imm.log("Options:")
     imm.log("      -m : module name to dump. Default is the loaded module")
+    imm.log("      -a : dump all modules. Useful when RCEing applications.")
     imm.log("      -p : path of dump file. Default is c:\\")
     imm.log("      -h : help")
     imm.log(" ")
@@ -34,7 +36,7 @@ def usage(imm):
 
 def dump(name, path):
     """
-    Dump a process to disk, and fix some section parameters
+    Dump a module to disk, and fix some section parameters
     """
     imm = immlib.Debugger()
     path = path+name
@@ -44,12 +46,13 @@ def dump(name, path):
         if not module:
             raise Exception, "Couldn't find %s .." % name
     except Exception,e:
-        return 'Error : %s'%e
+        return 'Error Dumping : %s'%e
     start = module.getBaseAddress()
     size = module.getSize()
     imm.log('[%s] Reading 0x%x bytes from 0x%08x'%(NAME, size, start))
     data = imm.readMemory(start, size)
-
+    
+    # Now, fix some PE Headers
     pe = pefile.PE(data=data)
     imm.log('[%s] Fixing section information..'%NAME)
     for i, section in enumerate(pe.sections):
@@ -65,22 +68,22 @@ def dump(name, path):
         pe.write(filename=path)
     except Exception,e:
         imm.log('[%s] Error : %s'%(NAME,e), focus=1, highlight=1 )
-        return 'Error'
+        return 'Error : See log'
     imm.log('[%s] Wrote %s bytes to %s'%(NAME,size, path))
     pe.close()
     return True
 
-def rebuild(filepath, target="c:\sample_fixed.exe"):
+def rebuild(filepath): 
     """
     ReBuild IAT
-    Fix the IAT for filepath, and write to target
+    Fix the IAT for filepath, based on the running process
     """
     imm = immlib.Debugger()
     pe = pefile.PE(filepath)
     iat = pe.OPTIONAL_HEADER.DATA_DIRECTORY[1]
     if not iat:
         imm.log('[%s] Error : No IAT found!', highlight=1)
-        return 'Error: No IAT Found!'
+        return 'Error: No IAT Found! Aborting IAT Fixup.'
 
     # Read the IAT info from the dumped file on disk
     iat_data = pe.get_data(iat.VirtualAddress, iat.Size)
@@ -94,6 +97,7 @@ def rebuild(filepath, target="c:\sample_fixed.exe"):
         # Read 20 bytes each time
         descriptor_data = iat_data[offset:offset+im.getSize()]
         if descriptor_data == '\x00'*20:
+            imm.log('Reached the end of IAT')
             # is it the end of the IAT?
             break
         try:
@@ -102,7 +106,6 @@ def rebuild(filepath, target="c:\sample_fixed.exe"):
         except Exception,e:
             imm.log('No IAT Found at the location. Quitting.')
             return 'Error. See Log'
-
         # increment to the next Import Descriptor
         offset+=im.getSize()
         dll_name = str()
@@ -134,7 +137,7 @@ def rebuild(filepath, target="c:\sample_fixed.exe"):
             thunk_offset += struct.calcsize('<L')
         function_strings = firstThunk+thunk_offset
     
-    imm.log('[%s] Searching for function names at %X..'%(NAME,function_strings))
+    imm.log('[%s] Searching for function names at 0x%X..'%(NAME,function_strings))
     data = pe.get_data(function_strings, (iat.VirtualAddress+iat.Size)-function_strings)
     string_offset = 0
     # store the offset and the string name in a dict
@@ -179,33 +182,45 @@ def rebuild(filepath, target="c:\sample_fixed.exe"):
             except Exception,e:
                 imm.log('[%s] Error setting bytes %08X at %08X for %s'%(NAME, (string_offset-2), function_offset, func.getName()),highlight=1)
 
-    pe.write(filename=target)
-    imm.log('[%s] Wrote to %s'%(NAME, target))
+    pe.write(filename=filepath)
+    imm.log('[%s] Wrote to %s'%(NAME, filepath))
     pe.close()
 	
 def main(args):
+    import os
     imm = immlib.Debugger()
+    modules = []
     module = None
     path = "c:\\"
     if 'help' in args:
         usage(imm)
     try:
-        opts, args = getopt.getopt(args, "m:p:h::")
+        opts, args = getopt.getopt(args, "m:p:h::a::")
     except getopt.GetoptError:
         usage(imm)
         return "Incorrect arguments (Check log window)"
     for o, a in opts:
         if o == "-m":
             module = a
+            break;
         elif o == "-p":
             path = a
+        elif o == '-a':
+            modules = True
+            imm.log('ALL ENABLED')
         elif o == "-h":
             usage()
             return '[%s] Done'%NAME
-    if not module:
-        module = imm.getDebuggedName()
+    if modules:
+        modules = imm.getAllModules().keys()
+    elif module:
+        modules.append(module)   
+    elif not module:
         imm.log('[%s] No module specified. Going to dump "%s"'%(NAME,module))
-    if dump(module,path):
-        rebuild(path+module, path+module+'_fixed')
+        modules.append(imm.getDebuggedName())
+    else:
+        usage()
+    for module in modules:
+        if dump(module,path):
+            rebuild(path+module)
     return '[%s] Done'%NAME
-

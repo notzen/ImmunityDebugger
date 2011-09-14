@@ -6,8 +6,8 @@
 # jax will set all breakpoints and add a comment to indicate the 
 # breakpoint's name
 #
-# Each BreakPoint has a Priority assoicated with it. 
 # TODO: Implement code for enabling Breakpoints based on Priority
+# (Each BreakPoint has a Priority assoicated with it.)
 # Copyright (C) 2010-2011 Kiran Bandla <kbandla@in2void.com>
 #-------------------------------------------------------------------------------
 
@@ -56,11 +56,11 @@ functions['shell32.dll']    =   [   ('ShellExecuteExW',1),
                                 ]
 
 functions['urlmon.dll']		=   [   ('URLDownloadToFileW',1),
-					                ('InternetOpenUrlW',1)
+                                    ('InternetOpenUrlW',1)
 				                ]
 
 functions['wininet.dll']	=   [	('HttpSendRequest',1),
-					                ('HttpSendRequestEx',1)
+                                    ('HttpSendRequestEx',1)
 				                ]
 
 functions['advapi32.dll']   =   [   ('RegOpenKeyW',1),

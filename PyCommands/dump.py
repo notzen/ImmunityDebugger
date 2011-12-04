@@ -6,7 +6,7 @@
 # Copyright (C) 2011 Kiran Bandla <kbandla@in2void.com>
 #-------------------------------------------------------------------------------
 
-__VERSION__  = '0.03'
+__VERSION__  = '0.06'
 NAME        = 'Dump'
 DESC        = 'Dumps process to disk, fixes IAT'
 COPYRIGHT   = '(C) 2011 Kiran Bandla, <kbandla@in2void.com>'
@@ -14,39 +14,46 @@ LICENSE     = 'WTFPL'
 
 import immlib
 import pefile
-import getopt
 import struct
+import optparse
+import os
+from time import gmtime, strftime
 from ctypes import *
 from pelib import *
 
-DEBUG = True
+DEBUG = False
 TAB = 4
 
 def usage(imm):
     imm.log(" ")
     imm.log("PE Dumper [%s] by kbandla" % (NAME), focus=1, highlight=1)
     imm.log("This script will dump module(s) to disk.")
+    imm.log("The default case will dump the main executable")
     imm.log("Options:")
-    imm.log("      -m : module name to dump. Default is the loaded module")
-    imm.log("      -a : dump all modules. Useful when RCEing applications.")
+    imm.log("      -m : dump a specific module. Select module from a drop down list")
+    #imm.log("      -a : dump all modules. Useful when RCEing applications.")
     imm.log("      -p : path of dump file. Default is c:\\")
-    imm.log("      -h : help")
+    imm.log("      -h : display this message and exit")
     imm.log(" ")
     return "See log window (Alt-L) for usage .. "
 
 def dump(name, path):
     """
     Dump a module to disk, and fix some section parameters
+    name - name of the module to dump
+    path - path of the dump file
     """
     imm = immlib.Debugger()
     path = path+name
-    imm.log('[%s] Dumping %s to %s'%(NAME, name, path))
+    imm.log('[%s] Dumping %s to %s..'%(NAME, name, path))
     try:
         module  = imm.getModule(name)
         if not module:
             raise Exception, "Couldn't find %s .." % name
+            return False
     except Exception,e:
-        return 'Error Dumping : %s'%e
+        imm.log('[%s] module %s not found'%(NAME, name))
+        return False
     start = module.getBaseAddress()
     size = module.getSize()
     imm.log('[%s] Reading 0x%x bytes from 0x%08x'%(NAME, size, start))
@@ -67,8 +74,9 @@ def dump(name, path):
     try:
         pe.write(filename=path)
     except Exception,e:
+        pe.close()
         imm.log('[%s] Error : %s'%(NAME,e), focus=1, highlight=1 )
-        return 'Error : See log'
+        return False
     imm.log('[%s] Wrote %s bytes to %s'%(NAME,size, path))
     pe.close()
     return True
@@ -76,14 +84,14 @@ def dump(name, path):
 def rebuild(filepath): 
     """
     ReBuild IAT
-    Fix the IAT for filepath, based on the running process
+    Fix the IAT for filepath, based on information from the running process
     """
     imm = immlib.Debugger()
     pe = pefile.PE(filepath)
     iat = pe.OPTIONAL_HEADER.DATA_DIRECTORY[1]
     if not iat:
-        imm.log('[%s] Error : No IAT found!', highlight=1)
-        return 'Error: No IAT Found! Aborting IAT Fixup.'
+        imm.log('[%s] Error : No IAT found! Aborting IAT Fixup.', highlight=1)
+        return False
 
     # Read the IAT info from the dumped file on disk
     iat_data = pe.get_data(iat.VirtualAddress, iat.Size)
@@ -97,7 +105,7 @@ def rebuild(filepath):
         # Read 20 bytes each time
         descriptor_data = iat_data[offset:offset+im.getSize()]
         if descriptor_data == '\x00'*20:
-            imm.log('Reached the end of IAT')
+            if DEBUG: imm.log('Reached the end of IAT')
             # is it the end of the IAT?
             break
         try:
@@ -182,45 +190,52 @@ def rebuild(filepath):
             except Exception,e:
                 imm.log('[%s] Error setting bytes %08X at %08X for %s'%(NAME, (string_offset-2), function_offset, func.getName()),highlight=1)
 
-    pe.write(filename=filepath)
-    imm.log('[%s] Wrote to %s'%(NAME, filepath))
+    pe.write()
     pe.close()
+    imm.log('[%s] Wrote to %s'%(NAME, filepath))
 	
+def parse_args(args):
+    argv = args
+    usage = "usage: %prog [options]"
+    parser = optparse.OptionParser(usage=usage)
+    parser.add_help_option = False
+    parser.add_option("-m", "--module", dest="module", help="name of the module to dump",
+                        default=False, metavar="MODULE", action="store_true")
+    parser.add_option("-p","--path", dest ="dump_path", help="path to write the dump",
+                        default="c:\\", metavar="PATH")
+    parser.add_option("-a","--all", dest = "all_modules", help ="dump all modules",
+                        default=False, metavar="ALL", action="store_true")
+    options, args = parser.parse_args(args=args)
+    return options
+
 def main(args):
-    import os
     imm = immlib.Debugger()
-    modules = []
-    module = None
-    path = "c:\\"
-    if 'help' in args:
+    if ('help' in args) or ('-help' in args) or ('-h' in args):
         usage(imm)
-    try:
-        opts, args = getopt.getopt(args, "m:p:h::a::")
-    except getopt.GetoptError:
-        usage(imm)
-        return "Incorrect arguments (Check log window)"
-    for o, a in opts:
-        if o == "-m":
-            module = a
-            break;
-        elif o == "-p":
-            path = a
-        elif o == '-a':
-            modules = True
-            imm.log('ALL ENABLED')
-        elif o == "-h":
-            usage()
-            return '[%s] Done'%NAME
-    if modules:
+        return 'See log window for usage'
+    options = parse_args(args)
+    
+    # deal with command line arguments
+    if options.all_modules:
         modules = imm.getAllModules().keys()
-    elif module:
-        modules.append(module)   
-    elif not module:
-        imm.log('[%s] No module specified. Going to dump "%s"'%(NAME,module))
-        modules.append(imm.getDebuggedName())
+        imm.log('[%s] Dumping all %s modules. This could take a while..'%(NAME,len(modules)))
+    elif options.module:
+        imm.setStatusBar('Select a module to dump from the drop-down list')
+        module = imm.comboBox('Select module to dump', imm.getAllModules().keys())
+        modules = [module]
+        imm.log('[%s] %s module selected for dumping.'%(NAME,options.module))
     else:
-        usage()
+        module = imm.getDebuggedName()
+        modules = [module]
+        imm.log('[%s] No module specified. Going to dump "%s"'%(NAME,module))
+    path = options.dump_path
+ 
+    # lets do some process dumping!
+    timestamp = strftime("%d_%m_%y-%H_%M_%S_", gmtime())
+    path = path+timestamp
     for module in modules:
         if dump(module,path):
             rebuild(path+module)
-    return '[%s] Done'%NAME
+        else:
+            return '[%s] Error. See log window.'%NAME
+    return '[%s] Process dump complete.'%NAME
